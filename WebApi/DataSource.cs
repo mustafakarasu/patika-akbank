@@ -2,9 +2,17 @@
 
 namespace WebApi;
 
-public static class DataSource
+/// <summary>
+/// Database kullanımı örnek olması açısından veri kaynağı olarak static bir class.
+/// </summary>
+public class DataSource
 {
-    public static List<Product> Products { get; set; } = new List<Product>(InitialProducts());
+    public List<Product> Products { get; set; } = new List<Product>(InitialProducts());
+
+    /// <summary>
+    /// Proje başladığında veri kaynağına başlangıç verileri yüklemek için. 
+    /// </summary>
+    /// <returns></returns>
     private static List<Product> InitialProducts()
     {
         return new List<Product>()
@@ -20,7 +28,12 @@ public static class DataSource
         };
     }
 
-    public static Product Create(Product product)
+    /// <summary>
+    /// Veri kaynağında client'tan alınan Id değeri varsa bu değeri kendimizin ayarlaması için.
+    /// </summary>
+    /// <param name="product">Oluşturulacak product entity değeridir.</param>
+    /// <returns></returns>
+    public Product Create(Product product)
     {
         if (Products.Any(x => x.Id == product.Id) )
         {

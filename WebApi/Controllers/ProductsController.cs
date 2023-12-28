@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using WebApi.Entities;
+using WebApi.Repositories;
 
 namespace WebApi.Controllers
 {
@@ -8,82 +9,106 @@ namespace WebApi.Controllers
     [ApiController]
     public class ProductsController : ControllerBase
     {
+        private readonly IProductRepository _productRepository;
 
+        public ProductsController(IProductRepository productRepository)
+        {
+            _productRepository = productRepository;
+        }
+
+        /// <summary>
+        /// Veri kaynağında bulunan bütün product'ları getirir.
+        /// </summary>
+        /// <param name="title">Veri kaynağındaki Title alanından bu değeri içeren productları getirir.</param>
+        /// <param name="order">Product'lar Id değerine göre hangi sırada olsun. "asc" artan, "desc" azalan sırada</param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         [HttpGet]
         public IActionResult GetProducts([FromQuery] string title, string order)
         {
-            var products = DataSource.Products.AsQueryable();
-            if (!string.IsNullOrWhiteSpace(title) )
-            {
-               products = products.Where(x => x.Title.ToLower().Contains(title.ToLower()));
-            }
-            if ( !string.IsNullOrWhiteSpace(order) )
-            {
-                if ( order.ToLower() == "desc" )
-                {
-                   products = products.OrderByDescending(x => x.Id);
-                }
-                else
-                {
-                   products =  products.OrderBy(x => x.Id);
-                }
-            }
-
-            var result = products.ToList();
-            return Ok(result);
+            var products = _productRepository.GetAll(title, order);
+            throw new Exception();
+            return Ok(products);
         }
 
+        /// <summary>
+        /// Product'ın Id değerine göre ürünü getirir.
+        /// </summary>
+        /// <param name="id">Product'ın Id değeri. int tipinde</param>
+        /// <returns></returns>
         [HttpGet("{id:int}", Name = "GetProductById")]
         public IActionResult GetProductById(int id)
         {
-           var product = DataSource.Products.FirstOrDefault(x => x.Id == id);
+            var product = _productRepository.GetById(id);
 
-           if (product == null)
-           {
-               return NotFound();
-           }
+            if ( product == null )
+            {
+                return NotFound();
+            }
 
-           return Ok(product);
+            return Ok(product);
         }
 
+        /// <summary>
+        /// Product eklemek için kullanılan Action.
+        /// </summary>
+        /// <param name="product">Eklenecek product değeri.</param>
+        /// <returns></returns>
         [HttpPost]
         public IActionResult CreateProduct([FromBody] Product product)
         {
-            var addedProduct = DataSource.Create(product);
+            var addedProduct = _productRepository.Create(product);
 
-              return CreatedAtRoute("GetProductById", new {id = product.Id}, addedProduct);
+            return CreatedAtRoute("GetProductById", new { id = product.Id }, addedProduct);
         }
 
+        /// <summary>
+        /// Id değerine göre Product'ı günceller.
+        /// </summary>
+        /// <param name="id">Product'ın Id değeri.</param>
+        /// <param name="product">Güncellenecek product parametresi.</param>
+        /// <returns></returns>
         [HttpPut("{id:int}")]
         public IActionResult UpdateProduct([FromRoute] int id, [FromBody] Product product)
         {
-            var updatedProduct = DataSource.Products.FirstOrDefault(x => x.Id == id);
+            var isExistsProduct = _productRepository.IsExistsProductById(id);
 
-            if (updatedProduct == null)
+            if (isExistsProduct == false )
             {
                 return NotFound();
             }
 
-            updatedProduct.Title = product.Title;   
-            updatedProduct.UnitPrice = product.UnitPrice;
+            _productRepository.UpdateById(id, product);
 
             return NoContent();
         }
 
+        /// <summary>
+        /// Id değerine göre Product'ı siler.
+        /// </summary>
+        /// <param name="id">Product'ın Id değeri.</param>
+        /// <returns></returns>
         [HttpDelete("{id:int}")]
         public IActionResult DeleteProduct([FromRoute] int id)
         {
-            var deletedProduct = DataSource.Products.FirstOrDefault(x => x.Id == id);
+            var deletedProduct = _productRepository.GetById(id);
 
-            if (deletedProduct == null )
+            if ( deletedProduct == null )
             {
                 return NotFound();
             }
 
-            DataSource.Products.Remove(deletedProduct);
+            _productRepository.DeleteById(id);
+
             return NoContent();
         }
 
+        /// <summary>
+        /// Id değerine göre ürünün belli bir kısmını güncelleyen Patch Action'ı.
+        /// </summary>
+        /// <param name="id">Product'ın Id değeri.</param>
+        /// <param name="patchProduct">üncellenecek product parametresi.</param>
+        /// <returns></returns>
         [HttpPatch("{id:int}")]
         public IActionResult PatchProduct(int id, [FromBody] JsonPatchDocument<Product> patchProduct)
         {
@@ -92,15 +117,16 @@ namespace WebApi.Controllers
                 return BadRequest(ModelState);
             }
 
-            var product = DataSource.Products.FirstOrDefault(x => x.Id == id);
-            if (product == null)
+            var product = _productRepository.GetById(id);
+
+            if ( product == null )
             {
                 return NotFound();
             }
 
-            patchProduct.ApplyTo(product,ModelState);
+            patchProduct.ApplyTo(product, ModelState);
 
-            if (!ModelState.IsValid)
+            if ( !ModelState.IsValid )
             {
                 return BadRequest(ModelState);
             }

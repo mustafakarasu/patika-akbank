@@ -1,3 +1,6 @@
+using WebApi.Middlewares;
+using WebApi.Repositories;
+
 namespace WebApi
 {
     public class Program
@@ -7,6 +10,13 @@ namespace WebApi
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+
+            // Veri kaynaðýný Singleton olarak service'lere ekliyoruz.
+            builder.Services.AddSingleton<DataSource>();
+
+            builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+           builder.Logging.AddConsole();
 
             builder.Services.AddControllers()
                 .AddNewtonsoftJson();
@@ -24,7 +34,11 @@ namespace WebApi
                 app.UseSwaggerUI();
             }
 
+            app.CustomException();
+
             app.UseHttpsRedirection();
+
+            app.CustomLogging(app.Logger);
 
             app.UseAuthorization();
 
